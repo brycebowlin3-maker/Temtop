@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080b12">
+<title>Temtop M10+ BLE Tester</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:#080b12;
+  color:#fff;
+  min-height:100vh;
+}
+.wrap{
+  max-width:700px;
+  margin:auto;
+  padding:24px 18px 50px;
+}
+h1{margin:0;font-size:30px}
+.sub{color:#8f9bad;margin-top:6px}
+.card{
+  background:#111722;
+  border:1px solid #202938;
+  border-radius:20px;
+  padding:20px;
+  margin-top:18px;
+}
+button{
+  width:100%;
+  border:0;
+  border-radius:14px;
+  padding:16px;
+  font-size:17px;
+  font-weight:700;
+  background:#fff;
+  color:#000;
+  cursor:pointer;
+}
+button:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+.status{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:18px;
+  font-weight:600;
+}
+.dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:#777;
+}
+.dot.ok{background:#32d583}
+.dot.bad{background:#ff4d4d}
+pre{
+  white-space:pre-wrap;
+  word-break:break-word;
+  background:#080b12;
+  border-radius:12px;
+  padding:14px;
+  color:#b9c4d4;
+  font-size:13px;
+  line-height:1.5;
+  overflow:auto;
+}
+.reading{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:16px;
+}
+.value{
+  background:#080b12;
+  padding:16px;
+  border-radius:15px;
+}
+.label{
+  color:#8995a7;
+  font-size:13px;
+}
+.num{
+  font-size:27px;
+  font-weight:800;
+  margin-top:5px;
+}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Temtop M10+</h1>
+  <div class="sub">BLE connection tester</div>
+  <div class="card">
+    <button id="connect">
+      🔵 Connect to M10+
+    </button>
+    <div class="status">
+      <span id="dot" class="dot"></span>
+      <span id="status">Not connected</span>
+    </div>
+  </div>
+  <div id="readingsCard" class="card hidden">
+    <h2>Live Data</h2>
+    <div class="reading">
+      <div class="value">
+        <div class="label">Temperature</div>
+        <div class="num" id="temp">—</div>
+      </div>
+      <div class="value">
+        <div class="label">Humidity</div>
+        <div class="num" id="humidity">—</div>
+      </div>
+      <div class="value">
+        <div class="label">PM2.5</div>
+        <div class="num" id="pm25">—</div>
+      </div>
+      <div class="value">
+        <div class="label">CO₂</div>
+        <div class="num" id="co2">—</div>
+      </div>
+      <div class="value">
+        <div class="label">TVOC</div>
+        <div class="num" id="tvoc">—</div>
+      </div>
+      <div class="value">
+        <div class="label">AQI</div>
+        <div class="num" id="aqi">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Bluetooth Debug</h2>
+    <pre id="log">Waiting for connection...</pre>
+  </div>
+</div>
+<script>
+const SERVICE_UUID =
+  "00010203-0405-0607-0809-0a0b0c0d1910";
+const NOTIFY_UUID =
+  "00010203-0405-0607-0809-0a0b0c0d2b10";
+let device = null;
+let server = null;
+let characteristic = null;
+const connectButton = document.getElementById("connect");
+const statusText = document.getElementById("status");
+const dot = document.getElementById("dot");
+const logBox = document.getElementById("log");
+const readingsCard = document.getElementById("readingsCard");
+function log(message){
+  const time = new Date().toLocaleTimeString();
+  logBox.textContent =
+    `[${time}] ${message}\n\n` +
+    logBox.textContent;
+}
+function setStatus(text, good=false, bad=false){
+  statusText.textContent = text;
+  dot.className = "dot";
+  if(good) dot.classList.add("ok");
+  if(bad) dot.classList.add("bad");
+}
+function bytesToHex(bytes){
+  return [...bytes]
+    .map(x => x.toString(16).padStart(2,"0"))
+    .join(" ");
+}
+function readUInt16BE(data, offset){
+  return (data[offset] << 8) |
+         data[offset + 1];
+}
+function decodePacket(data){
+  log(
+    "Received " +
+    data.length +
+    " bytes:\n" +
+    bytesToHex(data)
+  );
+  /*
+    M10+ packet map based on
+    reverse-engineered reports.
+    We intentionally decode conservatively.
+    The first goal is confirming that the
+    actual M10+ packet matches our expected
+    structure.
+  */
+  if(data.length < 34){
+    log(
+      "Packet is shorter than expected. " +
+      "Not decoding yet."
+    );
+    return;
+  }
+  try{
+    const pm25Raw =
+      readUInt16BE(data,22);
+    const temperatureRaw =
+      readUInt16BE(data,24);
+    const humidityRaw =
+      readUInt16BE(data,26);
+    const aqiRaw =
+      readUInt16BE(data,28);
+    const co2Raw =
+      readUInt16BE(data,30);
+    const tvocRaw =
+      readUInt16BE(data,32);
+    const temperature =
+      temperatureRaw / 10;
+    const humidity =
+      humidityRaw;
+    const pm25 =
+      pm25Raw / 10;
+    document.getElementById("temp").textContent =
+      temperature.toFixed(1) + " °C";
+    document.getElementById("humidity").textContent =
+      humidity.toFixed(0) + " %";
+    document.getElementById("pm25").textContent =
+      pm25.toFixed(1) + " µg/m³";
+    document.getElementById("co2").textContent =
+      co2Raw + " ppm";
+    document.getElementById("tvoc").textContent =
+      tvocRaw;
+    document.getElementById("aqi").textContent =
+      aqiRaw;
+    readingsCard.classList.remove("hidden");
+    log(
+      "Decoded:\n" +
+      "Temperature: " + temperature + " °C\n" +
+      "Humidity: " + humidity + " %\n" +
+      "PM2.5: " + pm25 + " µg/m³\n" +
+      "CO₂: " + co2Raw + " ppm\n" +
+      "TVOC: " + tvocRaw + "\n" +
+      "AQI: " + aqiRaw
+    );
+  }catch(error){
+    log(
+      "Decode error: " +
+      error.message
+    );
+  }
+}
+async function connect(){
+  if(!("bluetooth" in navigator)){
+    setStatus(
+      "Web Bluetooth is unavailable",
+      false,
+      true
+    );
+    log(
+      "navigator.bluetooth was not found.\n" +
+      "On iPhone/iPad Safari, enable a Web Bluetooth " +
+      "Safari extension such as beacio first."
+    );
+    return;
+  }
+  try{
+    connectButton.disabled = true;
+    setStatus("Searching for M10+...");
+    log("Opening Bluetooth device picker...");
+    device = await navigator.bluetooth.requestDevice({
+      filters: [
+        {
+          services: [SERVICE_UUID]
+        }
+      ],
+      optionalServices: [
+        SERVICE_UUID
+      ]
+    });
+    log(
+      "Selected device: " +
+      (device.name || "Unknown device")
+    );
+    device.addEventListener(
+      "gattserverdisconnected",
+      disconnected
+    );
+    setStatus("Connecting...");
+    server =
+      await device.gatt.connect();
+    log("GATT connection established.");
+    const service =
+      await server.getPrimaryService(
+        SERVICE_UUID
+      );
+    log(
+      "Found service:\n" +
+      service.uuid
+    );
+    characteristic =
+      await service.getCharacteristic(
+        NOTIFY_UUID
+      );
+    log(
+      "Found notification characteristic:\n" +
+      characteristic.uuid
+    );
+    await characteristic.startNotifications();
+    characteristic.addEventListener(
+      "characteristicvaluechanged",
+      event => {
+        const value =
+          event.target.value;
+        const bytes =
+          new Uint8Array(
+            value.buffer,
+            value.byteOffset,
+            value.byteLength
+          );
+        decodePacket(bytes);
+      }
+    );
+    setStatus(
+      "Connected — waiting for data",
+      true
+    );
+    log(
+      "Notifications enabled.\n" +
+      "Waiting for M10+ measurements..."
+    );
+    connectButton.textContent =
+      "🟢 Connected";
+  }catch(error){
+    console.error(error);
+    setStatus(
+      "Connection failed",
+      false,
+      true
+    );
+    log(
+      "ERROR: " +
+      error.name +
+      "\n" +
+      error.message
+    );
+    connectButton.disabled = false;
+  }
+}
+function disconnected(){
+  setStatus(
+    "Disconnected",
+    false,
+    true
+  );
+  connectButton.disabled = false;
+  connectButton.textContent =
+    "🔵 Connect to M10+";
+  log(
+    "Bluetooth device disconnected."
+  );
+}
+connectButton.addEventListener(
+  "click",
+  connect
+);
+</script>
+</body>
+</html>

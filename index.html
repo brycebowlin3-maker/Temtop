@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080b12">
+
+<title>Temtop M10+ BLE Tester</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:#080b12;
+  color:#f5f7fa;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",
+  "Segoe UI",sans-serif;
+}
+
+.wrap{
+  width:min(760px,100%);
+  margin:auto;
+  padding:24px 16px 60px;
+}
+
+.header{
+  padding:10px 4px 20px;
+}
+
+h1{
+  font-size:32px;
+  margin:0;
+  letter-spacing:-1px;
+}
+
+.subtitle{
+  color:#8994a6;
+  margin-top:7px;
+}
+
+.card{
+  background:#111722;
+  border:1px solid #202938;
+  border-radius:22px;
+  padding:18px;
+  margin-top:14px;
+  box-shadow:0 8px 30px rgba(0,0,0,.18);
+}
+
+button{
+  width:100%;
+  border:0;
+  border-radius:15px;
+  padding:16px;
+  font-size:17px;
+  font-weight:750;
+  background:#ffffff;
+  color:#080b12;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+
+button:active{
+  transform:scale(.985);
+}
+
+button:disabled{
+  opacity:.45;
+}
+
+.status{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:15px;
+  font-weight:700;
+}
+
+.dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:#687386;
+  flex:none;
+}
+
+.dot.green{
+  background:#35d07f;
+  box-shadow:0 0 12px #35d07f;
+}
+
+.dot.red{
+  background:#ff4d5e;
+}
+
+.dot.yellow{
+  background:#ffbf3f;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:14px;
+}
+
+.stat{
+  background:#080b12;
+  border-radius:15px;
+  padding:15px;
+  min-height:80px;
+}
+
+.label{
+  color:#7f8a9c;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+
+.value{
+  margin-top:5px;
+  font-size:19px;
+  font-weight:750;
+  word-break:break-word;
+}
+
+pre{
+  background:#080b12;
+  border-radius:15px;
+  padding:14px;
+  white-space:pre-wrap;
+  word-break:break-word;
+  overflow:auto;
+  color:#b9c4d4;
+  font-size:12px;
+  line-height:1.55;
+  max-height:420px;
+}
+
+h2{
+  margin:0 0 5px;
+  font-size:19px;
+}
+
+.small{
+  color:#7f8a9c;
+  font-size:13px;
+  line-height:1.5;
+}
+
+.hidden{
+  display:none;
+}
+
+.success{
+  color:#35d07f;
+}
+
+.warning{
+  color:#ffbf3f;
+}
+
+.error{
+  color:#ff6675;
+}
+
+.service{
+  border:1px solid #252e3d;
+  background:#0b0f17;
+  border-radius:14px;
+  padding:12px;
+  margin-top:10px;
+}
+
+.uuid{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px;
+  color:#aab6c8;
+  word-break:break-all;
+}
+
+.characteristic{
+  margin-top:8px;
+  padding:10px;
+  background:#111722;
+  border-radius:10px;
+}
+
+.badge{
+  display:inline-block;
+  margin-left:5px;
+  padding:3px 6px;
+  border-radius:6px;
+  font-size:10px;
+  background:#202938;
+  color:#aeb8c7;
+}
+
+#readingCard{
+  border-color:#294733;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <div class="header">
+    <h1>Temtop M10+</h1>
+    <div class="subtitle">
+      Bluetooth Low Energy connection tester
+    </div>
+  </div>
+
+
+  <!-- CONNECTION -->
+
+  <div class="card">
+
+    <button id="connectBtn">
+      🔵 Scan for Bluetooth Devices
+    </button>
+
+    <div class="status">
+
+      <span id="statusDot" class="dot"></span>
+
+      <span id="statusText">
+        Ready to scan
+      </span>
+
+    </div>
+
+  </div>
+
+
+  <!-- DEVICE INFO -->
+
+  <div id="deviceCard" class="card hidden">
+
+    <h2>Device</h2>
+
+    <div class="grid">
+
+      <div class="stat">
+        <div class="label">Name</div>
+        <div class="value" id="deviceName">—</div>
+      </div>
+
+      <div class="stat">
+        <div class="label">ID</div>
+        <div class="value" id="deviceId">—</div>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- LIVE READINGS -->
+
+  <div id="readingCard" class="card hidden">
+
+    <h2>Live M10+ Data</h2>
+
+    <div class="small">
+      Waiting for BLE notifications...
+    </div>
+
+    <div class="grid">
+
+      <div class="stat">
+        <div class="label">Temperature</div>
+        <div class="value" id="temperature">—</div>
+      </div>
+
+      <div class="stat">
+        <div class="label">Humidity</div>
+        <div class="value" id="humidity">—</div>
+      </div>
+
+      <div class="stat">
+        <div class="label">PM2.5</div>
+        <div class="value" id="pm25">—</div>
+      </div>
+
+      <div class="stat">
+        <div class="label">CO₂</div>
+        <div class="value" id="co2">—</div>
+      </div>
+
+      <div class="stat">
+        <div class="label">TVOC</div>
+        <div class="value" id="tvoc">—</div>
+      </div>
+
+      <div class="stat">
+        <div class="label">AQI</div>
+        <div class="value" id="aqi">—</div>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- GATT -->
+
+  <div id="gattCard" class="card hidden">
+
+    <h2>GATT Services</h2>
+
+    <div class="small">
+      Everything the M10+ exposes to the browser.
+    </div>
+
+    <div id="services"></div>
+
+  </div>
+
+
+  <!-- RAW PACKETS -->
+
+  <div class="card">
+
+    <h2>BLE Debug Log</h2>
+
+    <div class="small">
+      Raw packets and connection information.
+    </div>
+
+    <pre id="log">Waiting...</pre>
+
+  </div>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   TEMTOP M10+ KNOWN UUIDS
+   ========================================================= */
+
+const M10_SERVICE =
+"00010203-0405-0607-0809-0a0b0c0d1910";
+
+const M10_NOTIFY =
+"00010203-0405-0607-0809-0a0b0c0d2b10";
+
+
+/* =========================================================
+   STATE
+   ========================================================= */
+
+let device = null;
+let server = null;
+let notifyCharacteristic = null;
+
+
+/* =========================================================
+   ELEMENTS
+   ========================================================= */
+
+const connectBtn =
+document.getElementById("connectBtn");
+
+const statusText =
+document.getElementById("statusText");
+
+const statusDot =
+document.getElementById("statusDot");
+
+const logBox =
+document.getElementById("log");
+
+const deviceCard =
+document.getElementById("deviceCard");
+
+const readingCard =
+document.getElementById("readingCard");
+
+const gattCard =
+document.getElementById("gattCard");
+
+const servicesBox =
+document.getElementById("services");
+
+
+/* =========================================================
+   LOGGING
+   ========================================================= */
+
+function log(message){
+
+  const time =
+    new Date().toLocaleTimeString();
+
+  logBox.textContent =
+    "[" + time + "] " +
+    message +
+    "\n\n" +
+    logBox.textContent;
+
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+function status(message,type=""){
+
+  statusText.textContent = message;
+
+  statusDot.className = "dot";
+
+  if(type){
+    statusDot.classList.add(type);
+  }
+
+}
+
+
+/* =========================================================
+   HEX
+   ========================================================= */
+
+function hex(bytes){
+
+  return [...bytes]
+    .map(
+      b => b
+        .toString(16)
+        .padStart(2,"0")
+        .toUpperCase()
+    )
+    .join(" ");
+
+}
+
+
+/* =========================================================
+   UINT16 BIG ENDIAN
+   ========================================================= */
+
+function uint16BE(data,index){
+
+  return (
+    (data[index] << 8) |
+    data[index + 1]
+  );
+
+}
+
+
+/* =========================================================
+   DECODE M10+
+   ========================================================= */
+
+function decodeM10(data){
+
+  log(
+    "📦 M10+ packet (" +
+    data.length +
+    " bytes)\n" +
+    hex(data)
+  );
+
+
+  /*
+   * Published M10+ reverse-engineered map:
+   *
+   * 22-23 PM2.5 / 10
+   * 24-25 Temperature / 10
+   * 26-27 Humidity
+   * 28-29 AQI
+   * 30-31 CO2
+   * 32-33 TVOC
+   */
+
+  if(data.length < 34){
+
+    log(
+      "⚠️ Packet shorter than expected. " +
+      "Keeping raw packet only."
+    );
+
+    return;
+  }
+
+
+  try{
+
+    const pm25Raw =
+      uint16BE(data,22);
+
+    const tempRaw =
+      uint16BE(data,24);
+
+    const humidityRaw =
+      uint16BE(data,26);
+
+    const aqiRaw =
+      uint16BE(data,28);
+
+    const co2Raw =
+      uint16BE(data,30);
+
+    const tvocRaw =
+      uint16BE(data,32);
+
+
+    const pm25 =
+      pm25Raw / 10;
+
+    const temp =
+      tempRaw / 10;
+
+
+    document.getElementById(
+      "temperature"
+    ).textContent =
+      temp.toFixed(1) + " °C";
+
+
+    document.getElementById(
+      "humidity"
+    ).textContent =
+      humidityRaw + " %";
+
+
+    document.getElementById(
+      "pm25"
+    ).textContent =
+      pm25.toFixed(1) + " µg/m³";
+
+
+    document.getElementById(
+      "co2"
+    ).textContent =
+      co2Raw + " ppm";
+
+
+    document.getElementById(
+      "tvoc"
+    ).textContent =
+      tvocRaw;
+
+
+    document.getElementById(
+      "aqi"
+    ).textContent =
+      aqiRaw;
+
+
+    readingCard.classList.remove("hidden");
+
+
+    log(
+      "✅ Decoded M10+ reading\n" +
+      "Temperature: " +
+      temp.toFixed(1) +
+      " °C\n" +
+      "Humidity: " +
+      humidityRaw +
+      " %\n" +
+      "PM2.5: " +
+      pm25.toFixed(1) +
+      " µg/m³\n" +
+      "CO₂: " +
+      co2Raw +
+      " ppm\n" +
+      "TVOC: " +
+      tvocRaw +
+      "\nAQI: " +
+      aqiRaw
+    );
+
+  }catch(error){
+
+    log(
+      "❌ Decode error: " +
+      error.message
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   NOTIFICATION HANDLER
+   ========================================================= */
+
+function notification(event){
+
+  const value =
+    event.target.value;
+
+  const data =
+    new Uint8Array(
+      value.buffer,
+      value.byteOffset,
+      value.byteLength
+    );
+
+  decodeM10(data);
+
+}
+
+
+/* =========================================================
+   DISCOVER GATT
+   ========================================================= */
+
+async function discoverGatt(){
+
+  status(
+    "Discovering services...",
+    "yellow"
+  );
+
+  log(
+    "Starting GATT discovery..."
+  );
+
+
+  /*
+   * Try the known M10+ service first.
+   */
+
+  try{
+
+    const service =
+      await server.getPrimaryService(
+        M10_SERVICE
+      );
+
+    log(
+      "🎯 Found known M10+ service:\n" +
+      service.uuid
+    );
+
+
+    try{
+
+      const characteristic =
+        await service.getCharacteristic(
+          M10_NOTIFY
+        );
+
+      notifyCharacteristic =
+        characteristic;
+
+
+      log(
+        "🎯 Found M10+ notification characteristic:\n" +
+        characteristic.uuid
+      );
+
+
+      await characteristic.startNotifications();
+
+
+      characteristic.addEventListener(
+        "characteristicvaluechanged",
+        notification
+      );
+
+
+      status(
+        "Connected — receiving M10+ data",
+        "green"
+      );
+
+
+      log(
+        "🔔 Notifications enabled. " +
+        "Waiting for readings..."
+      );
+
+      return;
+
+    }catch(error){
+
+      log(
+        "Known service found, but notify characteristic " +
+        "could not be opened:\n" +
+        error.message
+      );
+
+    }
+
+  }catch(error){
+
+    log(
+      "Known M10+ service not found directly.\n" +
+      "Enumerating available services..."
+    );
+
+  }
+
+
+  /*
+   * Enumerate every service.
+   */
+
+  const services =
+    await server.getPrimaryServices();
+
+
+  gattCard.classList.remove("hidden");
+
+
+  servicesBox.innerHTML = "";
+
+
+  log(
+    "Found " +
+    services.length +
+    " primary service(s)."
+  );
+
+
+  for(
+    const service of services
+  ){
+
+    const serviceBox =
+      document.createElement("div");
+
+    serviceBox.className =
+      "service";
+
+
+    serviceBox.innerHTML =
+      "<strong>Service</strong>" +
+      "<div class='uuid'>" +
+      service.uuid +
+      "</div>";
+
+
+    servicesBox.appendChild(
+      serviceBox
+    );
+
+
+    log(
+      "SERVICE:\n" +
+      service.uuid
+    );
+
+
+    try{
+
+      const characteristics =
+        await service.getCharacteristics();
+
+
+      for(
+        const characteristic
+        of characteristics
+      ){
+
+        const props =
+          characteristic.properties;
+
+
+        const propList = [];
+
+
+        if(props.read)
+          propList.push("READ");
+
+        if(props.write)
+          propList.push("WRITE");
+
+        if(props.writeWithoutResponse)
+          propList.push("WRITE NO RESPONSE");
+
+        if(props.notify)
+          propList.push("NOTIFY");
+
+        if(props.indicate)
+          propList.push("INDICATE");
+
+
+        const charBox =
+          document.createElement("div");
+
+        charBox.className =
+          "characteristic";
+
+
+        charBox.innerHTML =
+          "<strong>Characteristic</strong>" +
+          "<div class='uuid'>" +
+          characteristic.uuid +
+          "</div>" +
+          "<div>" +
+          propList.map(
+            p =>
+              "<span class='badge'>" +
+              p +
+              "</span>"
+          ).join("") +
+          "</div>";
+
+
+        serviceBox.appendChild(
+          charBox
+        );
+
+
+        log(
+          "  CHARACTERISTIC:\n" +
+          characteristic.uuid +
+          "\n  Properties: " +
+          propList.join(", ")
+        );
+
+
+        /*
+         * Look for the known M10+ notify
+         * characteristic even if service discovery
+         * returned it through another route.
+         */
+
+        if(
+          characteristic.uuid.toLowerCase()
+          === M10_NOTIFY.toLowerCase()
+        ){
+
+          notifyCharacteristic =
+            characteristic;
+
+          log(
+            "🎯 Found known M10+ notify characteristic!"
+          );
+
+
+          if(props.notify){
+
+            try{
+
+              await characteristic.startNotifications();
+
+
+              characteristic.addEventListener(
+                "characteristicvaluechanged",
+                notification
+              );
+
+
+              status(
+                "Connected — receiving data",
+                "green"
+              );
+
+
+              log(
+                "🔔 M10+ notifications enabled."
+              );
+
+            }catch(error){
+
+              log(
+                "❌ Could not start notifications:\n" +
+                error.message
+              );
+
+            }
+
+          }
+
+        }
+
+      }
+
+    }catch(error){
+
+      log(
+        "Could not enumerate characteristics:\n" +
+        error.message
+      );
+
+    }
+
+  }
+
+
+  if(!notifyCharacteristic){
+
+    status(
+      "Connected, but M10+ data characteristic wasn't found",
+      "yellow"
+    );
+
+    log(
+      "⚠️ Connection succeeded, but the expected " +
+      "M10+ notification characteristic was not found."
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   DISCONNECT
+   ========================================================= */
+
+function disconnected(){
+
+  status(
+    "Disconnected",
+    "red"
+  );
+
+
+  connectBtn.disabled =
+    false;
+
+
+  connectBtn.textContent =
+    "🔵 Scan for Bluetooth Devices";
+
+
+  log(
+    "🔌 Bluetooth device disconnected."
+  );
+
+}
+
+
+/* =========================================================
+   CONNECT
+   ========================================================= */
+
+async function connect(){
+
+  if(
+    !navigator.bluetooth
+  ){
+
+    status(
+      "Web Bluetooth unavailable",
+      "red"
+    );
+
+
+    log(
+      "❌ navigator.bluetooth is unavailable.\n\n" +
+      "This page needs a browser/extension that " +
+      "provides Web Bluetooth."
+    );
+
+    return;
+  }
+
+
+  connectBtn.disabled =
+    true;
+
+
+  status(
+    "Opening Bluetooth picker...",
+    "yellow"
+  );
+
+
+  log(
+    "🔎 Requesting BLE device picker..."
+  );
+
+
+  try{
+
+    /*
+     * IMPORTANT:
+     *
+     * We intentionally use acceptAllDevices.
+     *
+     * This allows us to discover the M10+
+     * even if it does not advertise its custom
+     * service in the advertisement packet.
+     */
+
+    device =
+      await navigator.bluetooth.requestDevice({
+
+        acceptAllDevices:true,
+
+        optionalServices:[
+          M10_SERVICE
+        ]
+
+      });
+
+
+    log(
+      "📱 Device selected:\n" +
+      "Name: " +
+      (device.name || "Unknown") +
+      "\nID: " +
+      device.id
+    );
+
+
+    document.getElementById(
+      "deviceName"
+    ).textContent =
+      device.name || "Unknown";
+
+
+    document.getElementById(
+      "deviceId"
+    ).textContent =
+      device.id;
+
+
+    deviceCard.classList.remove(
+      "hidden"
+    );
+
+
+    device.addEventListener(
+      "gattserverdisconnected",
+      disconnected
+    );
+
+
+    status(
+      "Connecting to " +
+      (device.name || "device") +
+      "...",
+      "yellow"
+    );
+
+
+    server =
+      await device.gatt.connect();
+
+
+    log(
+      "✅ GATT connection established."
+    );
+
+
+    await discoverGatt();
+
+
+    connectBtn.textContent =
+      "🟢 Connected";
+
+
+  }catch(error){
+
+    console.error(error);
+
+
+    status(
+      "Connection failed",
+      "red"
+    );
+
+
+    log(
+      "❌ " +
+      error.name +
+      "\n" +
+      error.message
+    );
+
+
+    connectBtn.disabled =
+      false;
+
+  }
+
+}
+
+
+/* =========================================================
+   BUTTON
+   ========================================================= */
+
+connectBtn.addEventListener(
+  "click",
+  connect
+);
+
+
+/* =========================================================
+   INITIAL CHECK
+   ========================================================= */
+
+if(!navigator.bluetooth){
+
+  log(
+    "⚠️ Web Bluetooth is not currently available " +
+    "to this page."
+  );
+
+}else{
+
+  log(
+    "✅ Web Bluetooth API detected.\n" +
+    "Ready to scan."
+  );
+
+}
+
+</script>
+
+</body>
+</html>
